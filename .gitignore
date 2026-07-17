@@ -1,1 +1,30 @@
+# Environment files
 .env
+.env.*
+!.env.example
+
+# Go build artifacts
+/bin/
+/out/
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# Test and coverage output
+*.test
+*.out
+coverage.out
+
+# IDE/editor files
+.vscode/
+.idea/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Local binaries
+main.exe
+go-prod-ready-auth.exe
