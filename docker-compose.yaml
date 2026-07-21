@@ -1,0 +1,21 @@
+services:
+  db:
+    container_name: go_prod_ready_auth_db
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_PASSWORD: "${DB_PASSWORD}"
+      POSTGRES_USER: "${DB_USER}"
+      POSTGRES_DB: "${DB_NAME}"
+    ports:
+      - "${DB_PORT}:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER} -d ${DB_NAME}"]
+      interval: 3s
+      timeout: 3s
+      retries: 5  
+
+volumes:
+  pgdata:
