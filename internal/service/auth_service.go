@@ -15,7 +15,7 @@ import (
 
 type IMailService interface {
 	SendAccountCreationVerificationCode(to, emailVerificationCode string) error
-	SendTwoFactorVerificationMail(to string) error
+	SendTwoFactorVerificationMail(to string) (string, error)
 }
 
 type AuthService struct {
@@ -67,6 +67,22 @@ func (s *AuthService) Login(email, password string) (*LoginResponse, error) {
 	err = bcrypt.CompareHashAndPassword([]byte(user.Pass), []byte(password))
 	if err != nil {
 		return nil, errors.New("invalid email or password")
+	}
+
+	if user.IsTwoFactorVerificationActivated {
+		verificationCode, err := s.SendTwoFactorVerificationMail(user.Email)
+		if err != nil {
+			return nil, errors.New("failed to send two-factor verification code")
+		}
+
+		err = s.db.Model(&models.User{}).
+			Where("id = ?", user.ID).
+			Update("twofactorverificationcode", verificationCode).Error
+		if err != nil {
+			return nil, errors.New("failed to persist two-factor verification code")
+		}
+
+		return nil, errors.New("two factor verification required")
 	}
 
 	claims := JwtPayload{
@@ -214,11 +230,54 @@ func (s *AuthService) VerifyAccount(verificationCode string) error {
 	return nil
 }
 
-func (s *AuthService) VerifyTwoFactorVerification(verificationCode string) error {
-	return nil
+func (s *AuthService) VerifyTwoFactorVerification(verificationCode string) (*LoginResponse, error) {
+	var user models.User
+
+	err := s.db.Where("twofactorverificationcode = ? AND istwofactorverificationactivated = ?", verificationCode, true).First(&user).Error
+	if err != nil {
+		return nil, errors.New("invalid two-factor verification code")
+	}
+
+	accessToken, err := s.generateAccessToken(&user)
+	if err != nil {
+		return nil, errors.New("failed to generate access token")
+	}
+
+	refreshToken := uuid.New().String()
+
+	err = s.db.Model(&models.User{}).
+		Where("id = ?", user.ID).
+		Updates(models.User{
+			RefreshToken:              refreshToken,
+			TwoFactorVerificationCode: nil,
+		}).Error
+	if err != nil {
+		return nil, errors.New("failed to persist session")
+	}
+
+	return &LoginResponse{
+		AccessToken:  accessToken,
+		RefreshToken: refreshToken,
+	}, nil
 }
 
-// i'll complete it when i add expiry date for email verification code.
+func (s *AuthService) generateAccessToken(user *models.User) (string, error) {
+	claims := JwtPayload{
+		UserID: uint(user.ID),
+		Email:  user.Email,
+		Role:   user.UserRole,
+		RegisteredClaims: jwt.RegisteredClaims{
+			ExpiresAt: jwt.NewNumericDate(time.Now().Add(TOKEN_DURATION)),
+			IssuedAt:  jwt.NewNumericDate(time.Now()),
+			Issuer:    "auth-service",
+			Subject:   fmt.Sprintf("%d", user.ID),
+		},
+	}
+
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	return token.SignedString([]byte(JWT_SECRET))
+}
+
 func (s *AuthService) ResendAccountVerificationEmail(email string) error {
 	user, err := s.getUserByEmail(email)
 	if err != nil {
