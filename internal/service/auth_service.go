@@ -75,9 +75,13 @@ func (s *AuthService) Login(email, password string) (*LoginResponse, error) {
 			return nil, errors.New("failed to send two-factor verification code")
 		}
 
+		expiry := time.Now().Add(15 * time.Minute)
 		err = s.db.Model(&models.User{}).
 			Where("id = ?", user.ID).
-			Update("twofactorverificationcode", verificationCode).Error
+			Updates(models.User{
+				TwoFactorVerificationCode:       &verificationCode,
+				TwoFactorVerificationExpiryDate: &expiry,
+			}).Error
 		if err != nil {
 			return nil, errors.New("failed to persist two-factor verification code")
 		}
@@ -246,9 +250,9 @@ func (s *AuthService) VerifyAccount(verificationCode string) error {
 func (s *AuthService) VerifyTwoFactorVerification(verificationCode string) (*LoginResponse, error) {
 	var user models.User
 
-	err := s.db.Where("twofactorverificationcode = ? AND istwofactorverificationactivated = ?", verificationCode, true).First(&user).Error
+	err := s.db.Where("twofactorverificationcode = ? AND twofactorverificationexpirydate >= ? AND istwofactorverificationactivated = ?", verificationCode, time.Now(), true).First(&user).Error
 	if err != nil {
-		return nil, errors.New("invalid two-factor verification code")
+		return nil, errors.New("invalid or expired two-factor verification code")
 	}
 
 	accessToken, err := s.generateAccessToken(&user)
