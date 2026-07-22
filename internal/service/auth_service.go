@@ -10,7 +10,7 @@ import (
 )
 
 type IMailService interface {
-	SendAccountCreationVerificationCode(to string) error
+	SendAccountCreationVerificationCode(to, emailVerificationCode string) error
 	SendTwoFactorVerificationMail(to string) error
 }
 
@@ -56,7 +56,7 @@ func (s *AuthService) Register(email, username, password string) error {
 		return errors.New("Something went wrong while creating user in database.")
 	}
 
-	if err := s.SendAccountCreationVerificationCode(email); err != nil {
+	if err := s.SendAccountCreationVerificationCode(email, EmailVerificationCode.String()); err != nil {
 		tx.Rollback()
 		return errors.New("Something went wrong while sending verification code to user.")
 	}
