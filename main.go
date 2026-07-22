@@ -4,6 +4,7 @@ import (
 	"log"
 	"net/http"
 
+	"github.com/erenmentes/go-prod-ready-auth/internal/config"
 	"github.com/erenmentes/go-prod-ready-auth/internal/handler"
 	"github.com/gorilla/mux"
 	"github.com/joho/godotenv"
@@ -17,7 +18,9 @@ func main() {
 	}
 
 	// database connection
-	//config.ConnectDatabase()
+	if err := config.ConnectDatabase(); err != nil {
+		log.Fatal("Error connecting to database")
+	}
 
 	// main router
 	router := mux.NewRouter()
