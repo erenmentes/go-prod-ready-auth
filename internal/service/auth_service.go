@@ -35,6 +35,11 @@ type LoginResponse struct {
 	RefreshToken string `json:"refresh_token"`
 }
 
+type RefreshTokenResponse struct {
+	AccessToken  string `json:"access_token"`
+	RefreshToken string `json:"refresh_token"`
+}
+
 const TOKEN_DURATION = 15 * time.Minute
 
 var JWT_SECRET = os.Getenv("JWT_SECRET")
@@ -129,7 +134,7 @@ func (s *AuthService) Register(email, username, password string) error {
 
 	if err := tx.Create(&newUser).Error; err != nil {
 		tx.Rollback()
-		return errors.New("Something went wrong while creating user in database.")
+		return errors.New("something went wrong while creating user in database.")
 	}
 
 	if err := s.SendAccountCreationVerificationCode(email, EmailVerificationCode.String()); err != nil {
@@ -142,8 +147,45 @@ func (s *AuthService) Register(email, username, password string) error {
 	return nil
 }
 
-func (s *AuthService) RefreshToken(refreshToken string) error {
-	return nil
+func (s *AuthService) RefreshToken(refreshToken string) (*RefreshTokenResponse, error) {
+	var user models.User
+
+	err := s.db.Where("RefreshToken = ?", refreshToken).First(&user).Error
+	if err != nil {
+		return nil, errors.New("invalid refresh token")
+	}
+
+	newRefreshToken := uuid.New().String()
+
+	err = s.db.Model(&models.User{}).
+		Where("id = ?", user.ID).
+		Update("RefreshToken", newRefreshToken).Error
+	if err != nil {
+		return nil, errors.New("something went wrong while updating session")
+	}
+
+	claims := JwtPayload{
+		UserID: uint(user.ID),
+		Email:  user.Email,
+		Role:   user.UserRole,
+		RegisteredClaims: jwt.RegisteredClaims{
+			ExpiresAt: jwt.NewNumericDate(time.Now().Add(TOKEN_DURATION)),
+			IssuedAt:  jwt.NewNumericDate(time.Now()),
+			Issuer:    "auth-service",
+			Subject:   fmt.Sprintf("%d", user.ID),
+		},
+	}
+
+	accessToken := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	tokenString, err := accessToken.SignedString([]byte(JWT_SECRET))
+	if err != nil {
+		return nil, errors.New("failed to generate access token")
+	}
+
+	return &RefreshTokenResponse{
+		AccessToken:  tokenString,
+		RefreshToken: newRefreshToken,
+	}, nil
 }
 
 func (s *AuthService) VerifyAccount(verificationCode string) error {

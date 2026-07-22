@@ -10,7 +10,7 @@ type IAuthService interface {
 	service.IMailService
 	Login(email, password string) (*service.LoginResponse, error)
 	Register(email, username, password string) error
-	RefreshToken(refreshToken string) error
+	RefreshToken(refreshToken string) (*service.RefreshTokenResponse, error)
 }
 
 type AuthHandler struct {
