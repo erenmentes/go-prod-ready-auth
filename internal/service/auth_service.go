@@ -35,6 +35,14 @@ func (s *AuthService) Register(email, username, password string) error {
 
 	var EmailVerificationCode uuid.UUID
 
+	exists, err := s.checkIfUserAlreadyExists(email)
+	if err != nil {
+		return errors.New("Something went wrong during user availability check.")
+	}
+	if exists {
+		return errors.New("User with this email already exists.")
+	}
+
 	hashedPass, err := HashPassword(password)
 
 	if err != nil {
@@ -78,6 +86,21 @@ func (s *AuthService) VerifyAccount(verificationCode string) error {
 
 func (s *AuthService) VerifyTwoFactorVerification(verificationCode string) error {
 	return nil
+}
+
+func (s *AuthService) checkIfUserAlreadyExists(email string) (bool, error) {
+	var exists bool
+
+	err := s.db.Model(&models.User{}).
+		Select("count(1) > 0").
+		Where("email = ?", email).
+		Find(&exists).Error
+
+	if err != nil {
+		return false, err
+	}
+
+	return exists, nil
 }
 
 func HashPassword(password string) (string, error) {
