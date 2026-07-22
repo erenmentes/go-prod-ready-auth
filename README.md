@@ -26,6 +26,14 @@ DB_PASSWORD=GoProdReadyAuth13579**
 DB_NAME=GoProdReadyAuth
 DB_PORT=5433
 DB_HOST=127.0.0.1
+
+MAILTRAP_API_URL=https://send.api.mailtrap.io/api/send
+MAILTRAP_API_TOKEN=your_mailtrap_api_token
+MAILTRAP_FROM_EMAIL=hello@demomailtrap.co
+MAILTRAP_FROM_NAME=Your Project Name
+APP_BASE_URL=http://localhost:8080
+
+JWT_SECRET=your_jwt_secret
 ```
 
 Note : I'm still working on it, so all the features I mentioned above may not be there when u check. 🦥
