@@ -8,5 +8,6 @@ CREATE TABLE IF NOT EXISTS users (
     PhoneNumber varchar(30) UNIQUE,
     Pass text NOT NULL,
     EmailVerificationCode varchar(255) UNIQUE NOT NULL,
+    EmailVerificationCodeExpiryDate date NOT NULL,
     TwoFactorVerificationCode varchar(255) UNIQUE
 )
