@@ -14,7 +14,7 @@ type User struct {
 	RefreshToken                    string    `gorm:"type:varchar(255);unique;not null;column:refreshtoken"`
 	IsEmailVerified                 *bool     `gorm:"type:bool;not null;default:false"`
 	EmailVerificationCode           string    `gorm:"type:varchar(255);unique;not null;column:emailverificationcode"`
-	EmailVerificationCodeExpiryDate time.Time `gorm:"type:date;not null;column:emailverificationcodeexpirydate"`
+	EmailVerificationCodeExpiryDate time.Time `gorm:"type:timestamptz;not null;column:emailverificationcodeexpirydate"`
 	TwoFactorVerificationCode       *string   `gorm:"type:varchar(255);unique;column:twofactorverificationcode"`
 }
 

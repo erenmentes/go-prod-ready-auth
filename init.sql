@@ -9,6 +9,6 @@ CREATE TABLE IF NOT EXISTS users (
     RefreshToken varchar(255) UNIQUE NOT NULL,
     IsEmailVerified boolean NOT NULL DEFAULT false,
     EmailVerificationCode varchar(255) UNIQUE NOT NULL,
-    EmailVerificationCodeExpiryDate date NOT NULL,
+    EmailVerificationCodeExpiryDate timestamptz NOT NULL,
     TwoFactorVerificationCode varchar(255) UNIQUE
 )

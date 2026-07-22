@@ -191,19 +191,20 @@ func (s *AuthService) RefreshToken(refreshToken string) (*RefreshTokenResponse, 
 func (s *AuthService) VerifyAccount(verificationCode string) error {
 	var user models.User
 
-	err := s.db.Where("EmailVerificationCode = ?", verificationCode).First(&user).Error
+	err := s.db.Where("emailverificationcode = ? AND emailverificationcodeexpirydate >= ?", verificationCode, time.Now()).First(&user).Error
 	if err != nil {
-		return errors.New("invalid verification code")
+		return errors.New("invalid or expired verification code")
 	}
 
 	verified := true
 	user.IsEmailVerified = &verified
 
+	newCode := uuid.New().String()
 	err = s.db.Model(&user).
 		Select("IsEmailVerified", "EmailVerificationCode").
 		Updates(models.User{
 			IsEmailVerified:       &verified,
-			EmailVerificationCode: "",
+			EmailVerificationCode: newCode,
 		}).Error
 
 	if err != nil {
@@ -219,6 +220,48 @@ func (s *AuthService) VerifyTwoFactorVerification(verificationCode string) error
 
 // i'll complete it when i add expiry date for email verification code.
 func (s *AuthService) ResendAccountVerificationEmail(email string) error {
+	user, err := s.getUserByEmail(email)
+	if err != nil {
+		return errors.New("something went wrong while retrieving user")
+	}
+
+	if user == nil {
+		return errors.New("user not found")
+	}
+
+	if user.IsEmailVerified != nil && *user.IsEmailVerified {
+		return errors.New("account already verified")
+	}
+
+	newCode := uuid.New().String()
+	expiry := time.Now().Add(24 * time.Hour)
+
+	tx := s.db.Begin()
+	if tx.Error != nil {
+		return errors.New("failed to start database transaction")
+	}
+
+	err = tx.Model(&models.User{}).
+		Where("id = ?", user.ID).
+		Updates(models.User{
+			EmailVerificationCode:           newCode,
+			EmailVerificationCodeExpiryDate: expiry,
+		}).Error
+	if err != nil {
+		tx.Rollback()
+		return errors.New("something went wrong while updating verification code")
+	}
+
+	err = s.SendAccountCreationVerificationCode(user.Email, newCode)
+	if err != nil {
+		tx.Rollback()
+		return errors.New("something went wrong while sending verification code to user")
+	}
+
+	if err := tx.Commit().Error; err != nil {
+		return errors.New("failed to finalize verification code update")
+	}
+
 	return nil
 }
 
