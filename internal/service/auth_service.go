@@ -2,6 +2,7 @@ package service
 
 import (
 	"errors"
+	"time"
 
 	"github.com/erenmentes/go-prod-ready-auth/internal/models"
 	"github.com/google/uuid"
@@ -43,10 +44,11 @@ func (s *AuthService) Register(email, username, password string) error {
 	EmailVerificationCode = uuid.New()
 
 	newUser := models.User{
-		Username:              username,
-		Email:                 email,
-		Pass:                  hashedPass,
-		EmailVerificationCode: EmailVerificationCode.String(),
+		Username:                        username,
+		Email:                           email,
+		Pass:                            hashedPass,
+		EmailVerificationCode:           EmailVerificationCode.String(),
+		EmailVerificationCodeExpiryDate: time.Now().Add(24 * time.Hour),
 	}
 
 	tx := s.db.Begin()
