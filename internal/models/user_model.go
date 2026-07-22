@@ -12,6 +12,7 @@ type User struct {
 	PhoneNumber                     *string   `gorm:"type:varchar(30);unique;column:phonenumber"`
 	Pass                            string    `gorm:"type:text;not null;column:pass"`
 	RefreshToken                    string    `gorm:"type:varchar(255);unique;not null;column:refreshtoken"`
+	IsEmailVerified                 *bool     `gorm:"type:bool;not null;default:false"`
 	EmailVerificationCode           string    `gorm:"type:varchar(255);unique;not null;column:emailverificationcode"`
 	EmailVerificationCodeExpiryDate time.Time `gorm:"type:date;not null;column:emailverificationcodeexpirydate"`
 	TwoFactorVerificationCode       *string   `gorm:"type:varchar(255);unique;column:twofactorverificationcode"`

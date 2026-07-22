@@ -189,10 +189,36 @@ func (s *AuthService) RefreshToken(refreshToken string) (*RefreshTokenResponse, 
 }
 
 func (s *AuthService) VerifyAccount(verificationCode string) error {
+	var user models.User
+
+	err := s.db.Where("EmailVerificationCode = ?", verificationCode).First(&user).Error
+	if err != nil {
+		return errors.New("invalid verification code")
+	}
+
+	verified := true
+	user.IsEmailVerified = &verified
+
+	err = s.db.Model(&user).
+		Select("IsEmailVerified", "EmailVerificationCode").
+		Updates(models.User{
+			IsEmailVerified:       &verified,
+			EmailVerificationCode: "",
+		}).Error
+
+	if err != nil {
+		return errors.New("something went wrong while verifying account")
+	}
+
 	return nil
 }
 
 func (s *AuthService) VerifyTwoFactorVerification(verificationCode string) error {
+	return nil
+}
+
+// i'll complete it when i add expiry date for email verification code.
+func (s *AuthService) ResendAccountVerificationEmail(email string) error {
 	return nil
 }
 
