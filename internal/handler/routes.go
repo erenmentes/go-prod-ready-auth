@@ -3,12 +3,13 @@ package handler
 import (
 	"github.com/erenmentes/go-prod-ready-auth/internal/service"
 	"github.com/gorilla/mux"
+	"gorm.io/gorm"
 )
 
-func SetupRoutes(mux *mux.Router) error {
+func SetupRoutes(mux *mux.Router, db *gorm.DB) error {
 	mailService := service.NewMailService()
 
-	authService := service.NewAuthService(mailService)
+	authService := service.NewAuthService(mailService, db)
 
 	authHandler := NewAuthHandler(authService)
 

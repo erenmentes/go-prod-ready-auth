@@ -18,7 +18,8 @@ func main() {
 	}
 
 	// database connection
-	if err := config.ConnectDatabase(); err != nil {
+	db, err := config.ConnectDatabase()
+	if err != nil {
 		log.Fatal("Error connecting to database")
 	}
 
@@ -26,7 +27,7 @@ func main() {
 	router := mux.NewRouter()
 
 	// setup /api routers.
-	handler.SetupRoutes(router)
+	handler.SetupRoutes(router, db)
 
 	// start listening
 	if err := http.ListenAndServe(":8080", router); err != nil {

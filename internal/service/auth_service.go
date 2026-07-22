@@ -1,5 +1,14 @@
 package service
 
+import (
+	"errors"
+
+	"github.com/erenmentes/go-prod-ready-auth/internal/models"
+	"github.com/google/uuid"
+	"golang.org/x/crypto/bcrypt"
+	"gorm.io/gorm"
+)
+
 type IMailService interface {
 	SendAccountCreationVerificationCode(to string) error
 	SendTwoFactorVerificationMail(to string) error
@@ -7,11 +16,13 @@ type IMailService interface {
 
 type AuthService struct {
 	IMailService
+	db *gorm.DB
 }
 
-func NewAuthService(mailService IMailService) *AuthService {
+func NewAuthService(mailService IMailService, db *gorm.DB) *AuthService {
 	return &AuthService{
 		IMailService: mailService,
+		db:           db,
 	}
 }
 
@@ -20,9 +31,54 @@ func (s *AuthService) Login(username, password string) error {
 }
 
 func (s *AuthService) Register(email, username, password string) error {
+
+	var EmailVerificationCode uuid.UUID
+
+	hashedPass, err := HashPassword(password)
+
+	if err != nil {
+		return errors.New("Something went wrong while hashing password.")
+	}
+
+	EmailVerificationCode = uuid.New()
+
+	newUser := models.User{
+		Username:              username,
+		Email:                 email,
+		Pass:                  hashedPass,
+		EmailVerificationCode: EmailVerificationCode.String(),
+	}
+
+	tx := s.db.Begin()
+
+	if err := tx.Create(&newUser).Error; err != nil {
+		tx.Rollback()
+		return errors.New("Something went wrong while creating user in database.")
+	}
+
+	if err := s.SendAccountCreationVerificationCode(email); err != nil {
+		tx.Rollback()
+		return errors.New("Something went wrong while sending verification code to user.")
+	}
+
+	tx.Commit()
+
 	return nil
 }
 
 func (s *AuthService) RefreshToken(refreshToken string) error {
 	return nil
+}
+
+func (s *AuthService) VerifyAccount(verificationCode string) error {
+	return nil
+}
+
+func (s *AuthService) VerifyTwoFactorVerification(verificationCode string) error {
+	return nil
+}
+
+func HashPassword(password string) (string, error) {
+	bytes, err := bcrypt.GenerateFromPassword([]byte(password), 14)
+	return string(bytes), err
 }

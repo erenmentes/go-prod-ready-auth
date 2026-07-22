@@ -24,7 +24,8 @@ A production ready authentication backend structure uses postgresql & gorm writt
 DB_USER=GoProdReadyAuthUser
 DB_PASSWORD=GoProdReadyAuth13579**
 DB_NAME=GoProdReadyAuth
-DB_PORT=5432
+DB_PORT=5433
+DB_HOST=127.0.0.1
 ```
 
 Note : I'm still working on it, so all the features I mentioned above may not be there when u check. 🦥

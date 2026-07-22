@@ -1,5 +1,3 @@
-CREATE DATABASE GoProdReadyAuth;
-
 /* you can add more column if you want, for ex : bio, profile picture */
 CREATE TABLE IF NOT EXISTS users (
     ID int PRIMARY KEY,

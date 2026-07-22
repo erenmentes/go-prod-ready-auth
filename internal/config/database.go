@@ -10,7 +10,7 @@ import (
 
 var DB *gorm.DB
 
-func ConnectDatabase() error {
+func ConnectDatabase() (*gorm.DB, error) {
 
 	var err error
 
@@ -25,10 +25,10 @@ func ConnectDatabase() error {
 
 	DB, err = gorm.Open(postgres.Open(dsn), &gorm.Config{})
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	fmt.Println("Successfully connected to the database.")
 
-	return nil
+	return DB, nil
 }
