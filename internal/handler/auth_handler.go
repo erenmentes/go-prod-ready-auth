@@ -8,7 +8,7 @@ import (
 
 type IAuthService interface {
 	service.IMailService
-	Login(username, password string) error
+	Login(email, password string) (*service.LoginResponse, error)
 	Register(email, username, password string) error
 	RefreshToken(refreshToken string) error
 }

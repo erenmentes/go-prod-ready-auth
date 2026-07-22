@@ -2,9 +2,12 @@ package service
 
 import (
 	"errors"
+	"fmt"
+	"os"
 	"time"
 
 	"github.com/erenmentes/go-prod-ready-auth/internal/models"
+	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
 	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm"
@@ -20,6 +23,22 @@ type AuthService struct {
 	db *gorm.DB
 }
 
+type JwtPayload struct {
+	UserID uint   `json:"user_id"`
+	Email  string `json:"email"`
+	Role   string `json:"role"`
+	jwt.RegisteredClaims
+}
+
+type LoginResponse struct {
+	AccessToken  string `json:"access_token"`
+	RefreshToken string `json:"refresh_token"`
+}
+
+const TOKEN_DURATION = 15 * time.Minute
+
+var JWT_SECRET = os.Getenv("JWT_SECRET")
+
 func NewAuthService(mailService IMailService, db *gorm.DB) *AuthService {
 	return &AuthService{
 		IMailService: mailService,
@@ -27,19 +46,66 @@ func NewAuthService(mailService IMailService, db *gorm.DB) *AuthService {
 	}
 }
 
-func (s *AuthService) Login(username, password string) error {
-	return nil
+func (s *AuthService) Login(email, password string) (*LoginResponse, error) {
+	user, err := s.getUserByEmail(email)
+	if err != nil {
+		return nil, errors.New("invalid email or password")
+	}
+
+	if user == nil {
+		// fake hash with valid format 🦫, they ain't gettin that email datas from our backend bud!!!
+		fakeHash := "$2a$10$AzsX4.zN2v7YgqXvO1wGDu6V6p6l6f6v6f6v6f6v6f6v6f6v6f6v6"
+		_ = bcrypt.CompareHashAndPassword([]byte(fakeHash), []byte(password))
+		return nil, errors.New("invalid email or password")
+	}
+
+	err = bcrypt.CompareHashAndPassword([]byte(user.Pass), []byte(password))
+	if err != nil {
+		return nil, errors.New("invalid email or password")
+	}
+
+	claims := JwtPayload{
+		UserID: uint(user.ID),
+		Email:  user.Email,
+		Role:   user.UserRole,
+		RegisteredClaims: jwt.RegisteredClaims{
+			ExpiresAt: jwt.NewNumericDate(time.Now().Add(TOKEN_DURATION)),
+			IssuedAt:  jwt.NewNumericDate(time.Now()),
+			Issuer:    "auth-service",
+			Subject:   fmt.Sprintf("%d", user.ID),
+		},
+	}
+
+	accessToken := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	tokenString, err := accessToken.SignedString([]byte(JWT_SECRET))
+	if err != nil {
+		return nil, errors.New("failed to generate access token")
+	}
+
+	refreshToken := uuid.New().String()
+
+	err = s.db.Model(&models.User{}).
+		Where("id = ?", user.ID).
+		Update("refreshtoken", refreshToken).Error
+	if err != nil {
+		return nil, errors.New("failed to persist session")
+	}
+
+	return &LoginResponse{
+		AccessToken:  tokenString,
+		RefreshToken: refreshToken,
+	}, nil
 }
 
 func (s *AuthService) Register(email, username, password string) error {
 
 	var EmailVerificationCode uuid.UUID
 
-	exists, err := s.checkIfUserAlreadyExists(email)
+	user, err := s.getUserByEmail(email)
 	if err != nil {
-		return errors.New("Something went wrong during user availability check.")
+		return errors.New("Something went wrong during user check.")
 	}
-	if exists {
+	if user != nil {
 		return errors.New("User with this email already exists.")
 	}
 
@@ -88,19 +154,19 @@ func (s *AuthService) VerifyTwoFactorVerification(verificationCode string) error
 	return nil
 }
 
-func (s *AuthService) checkIfUserAlreadyExists(email string) (bool, error) {
-	var exists bool
+func (s *AuthService) getUserByEmail(email string) (*models.User, error) {
+	var user models.User
 
-	err := s.db.Model(&models.User{}).
-		Select("count(1) > 0").
-		Where("email = ?", email).
-		Find(&exists).Error
+	err := s.db.Where("email = ?", email).First(&user).Error
 
 	if err != nil {
-		return false, err
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, nil
+		}
+		return nil, err
 	}
 
-	return exists, nil
+	return &user, nil
 }
 
 func HashPassword(password string) (string, error) {
