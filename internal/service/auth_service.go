@@ -204,6 +204,19 @@ func (s *AuthService) RefreshToken(refreshToken string) (*RefreshTokenResponse, 
 	}, nil
 }
 
+func (s *AuthService) ToggleTwoFactorVerification(userID uint, activated bool) error {
+	result := s.db.Model(&models.User{}).
+		Where("id = ?", userID).
+		Update("istwofactorverificationactivated", activated)
+	if result.Error != nil {
+		return errors.New("failed to update two-factor verification setting")
+	}
+	if result.RowsAffected == 0 {
+		return errors.New("user not found")
+	}
+	return nil
+}
+
 func (s *AuthService) VerifyAccount(verificationCode string) error {
 	var user models.User
 
