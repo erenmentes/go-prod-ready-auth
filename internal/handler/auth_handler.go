@@ -17,6 +17,7 @@ type IAuthService interface {
 	ResendAccountVerificationEmail(email string) error
 	VerifyTwoFactorVerification(verificationCode string) (*service.LoginResponse, error)
 	ToggleTwoFactorVerification(userID uint, activated bool) error
+	ResetPassword(email, currentPassword, newPassword, newPasswordAgain string) error
 }
 
 type AuthHandler struct {
@@ -56,6 +57,12 @@ type toggleTwoFactorRequest struct {
 	Enabled bool `json:"enabled"`
 }
 
+type resetPasswordRequest struct {
+	CurrentPassword  string `json:"current_password"`
+	NewPassword      string `json:"new_password"`
+	NewPasswordAgain string `json:"new_password_again"`
+}
+
 func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 	var req loginRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -69,6 +76,7 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 			respondJSON(w, http.StatusAccepted, map[string]string{"message": "two factor verification required"})
 			return
 		}
+		// will also check if the account is locked (brute force protection)
 		respondError(w, http.StatusUnauthorized, err.Error())
 		return
 	}
@@ -129,13 +137,13 @@ func (h *AuthHandler) ToggleTwoFactor(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *AuthHandler) VerifyAccount(w http.ResponseWriter, r *http.Request) {
-	var req verificationRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		respondError(w, http.StatusBadRequest, "invalid request payload")
+	verificationCode := r.URL.Query().Get("code")
+	if verificationCode == "" {
+		respondError(w, http.StatusBadRequest, "verification code is required")
 		return
 	}
 
-	if err := h.IAuthService.VerifyAccount(req.VerificationCode); err != nil {
+	if err := h.IAuthService.VerifyAccount(verificationCode); err != nil {
 		respondError(w, http.StatusBadRequest, err.Error())
 		return
 	}
@@ -172,6 +180,26 @@ func (h *AuthHandler) VerifyTwoFactor(w http.ResponseWriter, r *http.Request) {
 	}
 
 	respondJSON(w, http.StatusOK, resp)
+}
+
+func (h *AuthHandler) ResetPassword(w http.ResponseWriter, r *http.Request) {
+	var req resetPasswordRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		respondError(w, http.StatusBadRequest, "invalid request payload")
+		return
+	}
+
+	user, ok := middleware.GetUserFromContext(r.Context())
+	if !ok {
+		respondError(w, http.StatusUnauthorized, "unauthenticated")
+		return
+	}
+
+	err := h.IAuthService.ResetPassword(user.Email, req.CurrentPassword, req.NewPassword, req.NewPasswordAgain)
+
+	if err != nil {
+		respondError(w, http.StatusUnauthorized, err.Error())
+	}
 }
 
 func respondJSON(w http.ResponseWriter, status int, data interface{}) {

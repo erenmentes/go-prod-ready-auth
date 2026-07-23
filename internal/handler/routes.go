@@ -21,9 +21,10 @@ func SetupRoutes(mux *mux.Router, db *gorm.DB) error {
 	mux.HandleFunc("/login/2fa", authHandler.VerifyTwoFactor).Methods("POST")
 	mux.HandleFunc("/register", authHandler.Register).Methods("POST")
 	mux.HandleFunc("/refresh-token", authHandler.RefreshToken).Methods("POST")
-	mux.HandleFunc("/verify-account", authHandler.VerifyAccount).Methods("POST")
+	mux.HandleFunc("/verify-account", authHandler.VerifyAccount).Methods("GET")
 	mux.HandleFunc("/resend-verification-email", authHandler.ResendVerificationEmail).Methods("POST")
 	mux.HandleFunc("/toggle-2fa", authMiddleware.Apply(emailMiddleware.Apply(authHandler.ToggleTwoFactor))).Methods("POST")
+	mux.HandleFunc("/reset-password", authMiddleware.Apply(emailMiddleware.Apply(authHandler.ResetPassword))).Methods("POST")
 
 	return nil
 }

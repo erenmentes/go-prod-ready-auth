@@ -165,7 +165,7 @@ func buildVerificationEmailHTML(code string) string {
 		baseURL = "https://yourdomain.com"
 	}
 
-	verificationLink := fmt.Sprintf("%s/verifyEmail?code=%s", baseURL, url.QueryEscape(code))
+	verificationLink := fmt.Sprintf("%s/verify-account?code=%s", baseURL, url.QueryEscape(code))
 
 	return fmt.Sprintf(`<!DOCTYPE html>
 <html>

@@ -13,6 +13,8 @@ type User struct {
 	Pass                             string     `gorm:"type:text;not null;column:pass"`
 	RefreshToken                     string     `gorm:"type:varchar(255);unique;not null;column:refreshtoken"`
 	IsEmailVerified                  *bool      `gorm:"type:bool;not null;default:false"`
+	IsAccountLocked                  bool       `gorm:"type:bool;not null;default:false;column:isaccountlocked"`
+	AccountLockExpirationDate        *time.Time `gorm:"type:timestamptz;column:accountlockexpirationdate"`
 	IsTwoFactorVerificationActivated bool       `gorm:"type:bool;not null;default:false;column:istwofactorverificationactivated"`
 	EmailVerificationCode            string     `gorm:"type:varchar(255);unique;not null;column:emailverificationcode"`
 	EmailVerificationCodeExpiryDate  time.Time  `gorm:"type:timestamptz;not null;column:emailverificationcodeexpirydate"`

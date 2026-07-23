@@ -341,6 +341,44 @@ func (s *AuthService) ResendAccountVerificationEmail(email string) error {
 	return nil
 }
 
+func (s *AuthService) ResetPassword(email, currentPassword, newPassword, newPasswordAgain string) error {
+
+	user, err := s.getUserByEmail(email)
+	if err != nil {
+		return errors.New("something went wrong while retrieving user")
+	}
+
+	if user == nil {
+		return errors.New("user not found")
+	}
+
+	e := bcrypt.CompareHashAndPassword([]byte(user.Pass), []byte(currentPassword))
+
+	if e != nil {
+		return errors.New("invalid current password")
+	}
+
+	if newPassword != newPasswordAgain {
+		return errors.New("passwords does not match")
+	}
+
+	hashedNewPass, err := HashPassword(newPassword)
+
+	if err != nil {
+		return errors.New("something went wrong while hashing password")
+	}
+
+	dbErr := s.db.Model(&models.User{}).Where("email = ?", email).Updates(models.User{
+		Pass: hashedNewPass,
+	}).Error
+
+	if dbErr != nil {
+		return errors.New("something went wrong while resetting password")
+	}
+
+	return nil
+}
+
 func (s *AuthService) getUserByEmail(email string) (*models.User, error) {
 	var user models.User
 

@@ -37,3 +37,5 @@ JWT_SECRET=your_jwt_secret
 ```
 
 Note : I'm still working on it, so all the features I mentioned above may not be there when u check. 🦥
+
+and in the future i will be improving performance by keep working on it, for example : doing account lockout by using redis instead of database.
